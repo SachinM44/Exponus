@@ -1,0 +1,16 @@
+import { Auth } from "../components/Auth"
+import { Quote } from "../components/quote"
+
+export const  Signup=()=>{
+return <div>
+    <div className="grid grid-cols-2">
+        <div>
+            <Auth type="signup"/>
+        </div>
+            <div className="invisible md:visible">
+            <Quote/>
+           </div>
+    </div>
+</div>
+}
+    
