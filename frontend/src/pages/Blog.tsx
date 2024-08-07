@@ -3,16 +3,14 @@
 //         blog
 //     </div>
 // }
+import { Appbar } from "../components/Appbar"
 import { Blogcard } from "../components/Blogcard"
 
 export const Blog=()=>{
     return <div>
-        <Blogcard
-        authorName={"harkirat"}
-        title={"title of the blog"}
-        content={"content of blog "}
-        publishDate={"2nd feb 2025"}
-        />
-    </div>
-    
+            <Appbar />
+         <div className="flex justify-center flex-col">
+           {}
+ </div>
+</div>
 }

@@ -11,17 +11,18 @@ export const Blogcard=({
     content,
     publishDate
 }:Blogcardprops)=>{
-return <div>
+return <div className=" p-4 border-b border-slate-200 pb-4">
      <div className="flex"> 
-        <div className="flex justify-center flex-col">
+        <div className="flex justify-center pl-2 text-sm
+         flex-col">
              <Avatar name={authorName}/>
         </div>
-       <div className=" pl-2 text-slate-600"> {authorName}
+       <div className=" flex justify-center flex-col pl-2 text-slate-600"> {authorName}
         </div> 
          <div className="flex justify-center flex-col pl-2">
             <Cicle />
          </div>
-        <div className=" pl-2 font-thin">
+        <div className=" text-sm pl-2 justify-center flex-col pt-0.5 font-thin ">
         {publishDate}
         </div>
      </div>
@@ -35,9 +36,6 @@ return <div>
         {`${Math.ceil(content.length/100)} minutes(s)
         read`}
      </div>
-     <div className="bg-slate-200 h-1 w-full text-slate-400">
-
-     </div>
 </div>
 }
 function Cicle(){
@@ -45,9 +43,9 @@ function Cicle(){
 
     </div>
 }
- const Avatar=({name}: {name:string})=>{
+ export const Avatar=({name ,size=6}: {name:string , size?:number})=>{
     return <div>
-        <div className="relative inline-flex items-center justify-center w-5 h-5 overflow-hidden bg-gray-400 rounded-full dark:bg-gray-600">
+        <div className={`relative inline-flex items-center justify-center  w-${size} h-${size} overflow-hidden bg-gray-400 rounded-full dark:bg-gray-600`}>
     <span className="text-sm  text-gray-600 dark:text-gray-600">{name[0]}</span>
 </div>
     </div>
