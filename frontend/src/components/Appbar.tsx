@@ -8,6 +8,9 @@ export const Appbar=()=>{
     <div>
         <Avatar size={8} name="sachin"/>
     </div>
+    <div>
+      <button></button>
+    </div>
 
   </div>
 }
