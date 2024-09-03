@@ -1,33 +1,38 @@
-// import { Blogcard } from "../components/Blogcard"
-
-// export const Blogs=()=>{
-//     return <div>
-//         <Blogcard
-//         authorName={"harkirat"}
-//         title={"title of the blog"}
-//         content={"content of blog "}
-//         publishDate={"2nd feb 2025"}
-//         />
-//     </div>
-    
-// }
-
 import { Appbar } from "../components/Appbar"
-import { Blogcard } from "../components/Blogcard"
+import { BlogCard } from "../components/Blogcard"
+import { BlogSkeleton } from "../components/BlogSkeleton";
+import { useBlogs } from "../hooks";
 
-export const Blog=()=>{
+export const Blogs = () => {
+    const { loading, blogs } = useBlogs();
+
+    if (loading) {
+        return <div>
+            <Appbar /> 
+            <div  className="flex justify-center">
+                <div>
+                    <BlogSkeleton />
+                    <BlogSkeleton />
+                    <BlogSkeleton />
+                    <BlogSkeleton />
+                    <BlogSkeleton />
+                </div>
+            </div>
+        </div>
+    }
+
     return <div>
-            <Appbar />
-         <div className="flex justify-center flex-col">
-          {blogs.map{blog=> <div className=" max-w-xl">
-            <Blogcard
-              authorName={blog.author.name || " Anonymous"}
-              title={blog.content}
-             content={"how the ugly website makes $38838 a month what to know really .. read more about this  "}
-             publishDate={"2nd feb 2025"}
-        />
-        </div>}}
-        
- </div>
-</div>
+        <Appbar />
+        <div  className="flex justify-center">
+            <div>
+                {blogs.map(blog => <BlogCard
+                    id={blog.id}
+                    authorName={blog.author.name || "Anonymous"}
+                    title={blog.title}
+                    content={blog.content}
+                    publishedDate={"2nd Feb 2024"}
+                />)}
+            </div>
+        </div>
+    </div>
 }
