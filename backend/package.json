@@ -4,13 +4,14 @@
     "deploy": "wrangler deploy --minify src/index.ts"
   },
   "dependencies": {
+    "@exponus/exponus-common": "^1.0.2",
     "@exponus1/exponus-common": "^1.0.0",
     "@prisma/client": "^5.16.2",
     "@prisma/extension-accelerate": "^1.1.0",
     "axios": "^1.7.3",
     "hono": "^4.4.2",
     "pg": "^8.12.0",
-    "prisma": "^5.17.0"
+    "prisma": "^5.22.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240529.0",
