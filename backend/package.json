@@ -6,7 +6,7 @@
   "dependencies": {
     "@exponus/exponus-common": "^1.0.2",
     "@exponus1/exponus-common": "^1.0.0",
-    "@prisma/client": "^5.16.2",
+    "@prisma/client": "^5.22.0",
     "@prisma/extension-accelerate": "^1.1.0",
     "axios": "^1.7.3",
     "hono": "^4.4.2",
