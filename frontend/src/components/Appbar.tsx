@@ -1,11 +1,15 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useUser } from '../hooks/useUser';
 import Avatar from './Avatar';
+import { useAppDispatch } from '../store/hooks';
+import { clearUserState } from '../store/slices/userSlice';
+import { toast } from 'react-hot-toast';
 
 const Appbar = () => {
   const { data: user } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   
   // Show back button on pages other than home and blogs
   const showBackButton = !['/blogs', '/'].includes(location.pathname);
@@ -42,12 +46,12 @@ const Appbar = () => {
                 </Link>
                 <Link to="/profile" className="flex items-center space-x-2">
                   <Avatar
-                    name={user.name || user.email}
+                    name={user.name || user.username}
                     src={user.avatar || undefined}
                     size="small"
                   />
                   <span className="text-gray-700 dark:text-gray-200">
-                    {user.name || user.email.split('@')[0]}
+                    {user.name || user.username}
                   </span>
                 </Link>
               </div>

@@ -13,18 +13,19 @@ interface UserState {
   profile: UserProfile | null;
   loading: boolean;
   error: string | null;
+  lastFetchTime: number;
 }
 
 const initialState: UserState = {
   profile: null,
   loading: false,
   error: null,
+  lastFetchTime: 0,
 };
 
 // Tracking variables
 let isUserProfileBeingFetched = false;
-let lastFetchTime = 0;
-const FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
+const FETCH_COOLDOWN = 60000; // 60 seconds cooldown between fetches
 
 // Async thunks
 export const fetchUserProfile = createAsyncThunk(
@@ -36,7 +37,7 @@ export const fetchUserProfile = createAsyncThunk(
       const state = getState() as { user: UserState };
       
       // If we already have a profile and it's been less than FETCH_COOLDOWN since last fetch, skip
-      if (state.user.profile && (now - lastFetchTime < FETCH_COOLDOWN)) {
+      if (state.user.profile && (now - state.user.lastFetchTime < FETCH_COOLDOWN)) {
         console.log('Skipping duplicate profile fetch - using cached data');
         return state.user.profile;
       }
@@ -59,7 +60,6 @@ export const fetchUserProfile = createAsyncThunk(
       const response = await apiClient.get('/api/v1/user/profile');
 
       isUserProfileBeingFetched = false;
-      lastFetchTime = Date.now();
       console.log('Profile fetched successfully');
       
       return response.data;
@@ -102,10 +102,6 @@ export const updateUserProfile = createAsyncThunk(
       });
 
       const response = await apiClient.put('/api/v1/user/profile', updateData);
-      
-      // Reset fetch cooldown after successful update
-      lastFetchTime = 0;
-      
       return response.data;
     } catch (error) {
       return rejectWithValue('Failed to update profile');
@@ -120,10 +116,12 @@ const userSlice = createSlice({
     clearUserState: (state) => {
       state.profile = null;
       state.error = null;
-      lastFetchTime = 0;
+      state.lastFetchTime = 0;
+      isUserProfileBeingFetched = false;
     },
     setUserProfile: (state, action: PayloadAction<UserProfile>) => {
       state.profile = action.payload;
+      state.lastFetchTime = Date.now();
     },
   },
   extraReducers: (builder) => {
@@ -139,12 +137,14 @@ const userSlice = createSlice({
           state.loading = false;
           if (action.payload) {
             state.profile = action.payload;
+            state.lastFetchTime = Date.now();
           }
         }
       )
       .addCase(fetchUserProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+        isUserProfileBeingFetched = false;
       })
 
       // Update user profile
@@ -157,6 +157,7 @@ const userSlice = createSlice({
         (state, action: PayloadAction<UserProfile>) => {
           state.loading = false;
           state.profile = action.payload;
+          state.lastFetchTime = Date.now();
         }
       )
       .addCase(updateUserProfile.rejected, (state, action) => {

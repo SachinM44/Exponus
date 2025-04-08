@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import LoadingSpinner from "../components/LoadingSpinner";
 import toast from "react-hot-toast";
 import { useAppDispatch } from '../store/hooks';
-import { updateUserProfile } from '../store/slices/userSlice';
+import { clearUserState, updateUserProfile } from '../store/slices/userSlice';
 import apiClient from "../lib/apiClient";
 
 interface UserProfile {
@@ -33,6 +33,14 @@ export const Profile = () => {
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    dispatch(clearUserState());
+    toast.success('Logged out successfully');
+    navigate('/signin');
+  };
 
   // Load user profile only once when component mounts
   useEffect(() => {
@@ -208,17 +216,27 @@ export const Profile = () => {
     <div className="min-h-screen dark:bg-gray-900">
       <Appbar />
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center mb-8">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate(-1)}
+              className="mr-4 p-2 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              aria-label="Go back"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h1 className="text-3xl font-bold dark:text-white">Edit Profile</h1>
+          </div>
+          
           <button
-            onClick={() => navigate(-1)}
-            className="mr-4 p-2 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-            aria-label="Go back"
+            onClick={handleLogout}
+            className="px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors"
+            aria-label="Logout"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
+            Logout
           </button>
-          <h1 className="text-3xl font-bold dark:text-white">Edit Profile</h1>
         </div>
         
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-6">

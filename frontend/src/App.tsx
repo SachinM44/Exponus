@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Signup } from './pages/Signup';
 import { Signin } from './pages/Signin';
@@ -7,7 +7,7 @@ import { Blogs } from './pages/Blogs';
 import { Publish } from './pages/Publish';
 import { Profile } from './pages/Profile';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { useAppDispatch } from './store/hooks';
+import { useAppDispatch, useAppSelector } from './store/hooks';
 import { fetchUserProfile } from './store/slices/userSlice';
 import apiClient from './lib/apiClient';
 import toast from 'react-hot-toast';
@@ -18,7 +18,8 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1
+      retry: 1,
+      staleTime: 30000, // 30 seconds
     },
   },
 });
@@ -27,22 +28,32 @@ const queryClient = new QueryClient({
 function AppContent() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
+  const userProfile = useAppSelector(state => state.user.profile);
 
-  // Check authentication on app start
+  // Check authentication on app start - only once
   useEffect(() => {
     const checkAuth = async () => {
+      if (authChecked) return;
+
       const token = localStorage.getItem('token');
       if (!token) {
         console.log('No token found, user is not authenticated');
+        setAuthChecked(true);
+        return;
+      }
+
+      if (userProfile) {
+        console.log('User profile already loaded');
+        setAuthChecked(true);
         return;
       }
 
       try {
-        // Directly fetch user profile to check if token is valid
-        await apiClient.get('/api/v1/user/profile');
-        
-        // If successful, fetch user profile
-        dispatch(fetchUserProfile());
+        // Only dispatch fetchUserProfile if we need to
+        console.log('Fetching user profile on app start');
+        await dispatch(fetchUserProfile()).unwrap();
+        setAuthChecked(true);
       } catch (error) {
         console.error('Authentication check failed:', error);
         
@@ -50,11 +61,12 @@ function AppContent() {
         localStorage.removeItem('token');
         toast.error('Your session has expired. Please sign in again.');
         navigate('/signin');
+        setAuthChecked(true);
       }
     };
 
     checkAuth();
-  }, [dispatch, navigate]);
+  }, [dispatch, navigate, authChecked, userProfile]);
 
   return (
     <>

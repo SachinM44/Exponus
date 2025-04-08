@@ -149,22 +149,36 @@ export const fetchBlog = createAsyncThunk(
 
       const blogData = blogResponse.data.blog;
 
-      // Fetch author data
-      const authorResponse = await axios.get(
-        `${BACKEND_URL}/api/v1/user/${blogData.authorId}`,
-        {
-          headers: { Authorization: token },
+      // Prepare a default author in case the fetch fails
+      let author = {
+        id: blogData.authorId,
+        name: 'Unknown User',
+        email: 'unknown',
+        avatar: null,
+      };
+
+      try {
+        // Fetch author data - but handle the case if author doesn't exist
+        if (blogData.authorId) {
+          const authorResponse = await axios.get(
+            `${BACKEND_URL}/api/v1/user/${blogData.authorId}`,
+            {
+              headers: { Authorization: token },
+            }
+          );
+          
+          if (authorResponse.data && authorResponse.data.user) {
+            author = authorResponse.data.user;
+          }
         }
-      );
+      } catch (authorError) {
+        console.log(`Author with ID ${blogData.authorId} not found, using default`);
+        // Continue with default author
+      }
 
       return {
         ...blogData,
-        author: authorResponse.data.user || {
-          id: blogData.authorId,
-          name: 'Unknown User',
-          email: 'unknown',
-          avatar: null,
-        },
+        author,
       };
     } catch (error) {
       return rejectWithValue('Failed to fetch blog');
@@ -312,9 +326,15 @@ export const updateLike = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      // Fix: Ensure we're sending a proper JSON object with content-type application/json
       await apiClient.post(
         `/api/v1/blog/${blogId}/like`,
-        { value }
+        JSON.stringify({ value }), // Explicitly stringify the payload
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
       return { blogId, value, userId };

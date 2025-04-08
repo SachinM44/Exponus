@@ -64,8 +64,9 @@ export const BlogCard = memo(({
     const blogLikes = likes[id] || [];
     const blogComments = comments[id] || [];
     
-    // Calculate like count
+    // Calculate like/dislike counts
     const likesCount = blogLikes.filter(like => like.value === 1).length;
+    const dislikesCount = blogLikes.filter(like => like.value === -1).length;
     const commentsCount = blogComments.length;
     
     // Format date for better readability
@@ -118,14 +119,15 @@ export const BlogCard = memo(({
             : processedContent;
     }, [content]);
     
-    // Check if the current user has liked the blog
-    const hasLiked = profile && blogLikes.some(like => like.userId === profile.id && like.value === 1);
+    // Check if the current user has liked or disliked the blog
+    const userLikeStatus = useMemo(() => {
+        if (!profile) return 0;
+        const userLike = blogLikes.find(like => like.userId === profile.id);
+        return userLike ? userLike.value : 0;
+    }, [profile, blogLikes]);
 
-    // We'll only fetch likes when the user interacts with the like button
-    // This reduces unnecessary API calls on page load
-
-    // Handle like action
-    const handleLike = (e: React.MouseEvent) => {
+    // Handle like/dislike action
+    const handleLikeAction = (value: number) => (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -134,14 +136,59 @@ export const BlogCard = memo(({
             return;
         }
         
-        // Fetch likes first to ensure we have the latest data
-        dispatch(fetchLikes(id)).then(() => {
-            dispatch(updateLike({
-                blogId: id, 
-                value: hasLiked ? 0 : 1, 
-                userId: profile.id
-            }));
+        // If user clicked same button that's already active, treat as unlike
+        const newValue = userLikeStatus === value ? 0 : value;
+        
+        // Dispatch the update like action with the appropriate value
+        dispatch(updateLike({
+            blogId: id, 
+            value: newValue, 
+            userId: profile.id
+        })).unwrap()
+        .then(() => {
+            if (newValue === 1) {
+                toast.success("You liked this post");
+            } else if (newValue === -1) {
+                toast.success("You disliked this post");
+            }
+        })
+        .catch(() => {
+            toast.error("Failed to update like status");
         });
+    };
+    
+    // Handle share
+    const handleShare = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const url = `${window.location.origin}/blog/${id}`;
+        
+        // Use the Web Share API if available
+        if (navigator.share) {
+            navigator.share({
+                title: title,
+                text: truncatedContent,
+                url: url
+            })
+            .then(() => toast.success("Shared successfully"))
+            .catch((error) => {
+                console.error("Error sharing:", error);
+                
+                // Fallback: copy to clipboard
+                copyToClipboard(url);
+            });
+        } else {
+            // Fallback: copy to clipboard
+            copyToClipboard(url);
+        }
+    };
+    
+    // Helper to copy to clipboard
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text)
+            .then(() => toast.success("Link copied to clipboard"))
+            .catch(() => toast.error("Failed to copy link"));
     };
     
     return (
@@ -173,21 +220,46 @@ export const BlogCard = memo(({
                     
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex items-center space-x-4">
+                            {/* Like Button */}
                             <button 
-                                onClick={handleLike}
-                                className={`flex items-center ${hasLiked ? "text-blue-500" : "text-gray-500 dark:text-gray-400"} hover:text-blue-500`}
+                                onClick={handleLikeAction(1)}
+                                className={`flex items-center ${userLikeStatus === 1 ? "text-blue-500" : "text-gray-500 dark:text-gray-400"} hover:text-blue-500 transition-colors`}
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill={hasLiked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill={userLikeStatus === 1 ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
                                 </svg>
                                 <span>{likesCount}</span>
                             </button>
+                            
+                            {/* Dislike Button */}
+                            <button 
+                                onClick={handleLikeAction(-1)}
+                                className={`flex items-center ${userLikeStatus === -1 ? "text-red-500" : "text-gray-500 dark:text-gray-400"} hover:text-red-500 transition-colors`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill={userLikeStatus === -1 ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2" />
+                                </svg>
+                                <span>{dislikesCount}</span>
+                            </button>
+                            
+                            {/* Comments Count */}
                             <div className="flex items-center text-gray-500 dark:text-gray-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                                 </svg>
                                 <span>{commentsCount}</span>
                             </div>
+                            
+                            {/* Share Button */}
+                            <button 
+                                onClick={handleShare}
+                                className="flex items-center text-gray-500 dark:text-gray-400 hover:text-blue-500 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                </svg>
+                                <span>Share</span>
+                            </button>
                         </div>
                         <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">Read more →</span>
                     </div>
