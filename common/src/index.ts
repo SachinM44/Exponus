@@ -16,6 +16,15 @@ export const signinInput = z.object({
 
 export type SigninInput = z.infer<typeof signinInput>;
 
+// Profile validation schema
+export const updateProfileInput = z.object({
+    name: z.string().optional(),
+    bio: z.string().optional(),
+    avatar: z.union([z.string(), z.instanceof(File)]).optional()
+});
+
+export type UpdateProfileInput = z.infer<typeof updateProfileInput>;
+
 // Blog validation schemas
 export const createBlogInput = z.object({
     title: z.string(),
@@ -29,20 +38,9 @@ export const updateBlogInput = z.object({
     id: z.number(),
     title: z.string(),
     content: z.string(),
-    imageUrl: z.string().optional()
 });
 
 export type UpdateBlogInput = z.infer<typeof updateBlogInput>;
-
-// Profile validation schemas
-export const updateProfileInput = z.object({
-    name: z.string().optional(),
-    password: z.string().min(6).optional(),
-    avatar: z.string().optional(),
-    bio: z.string().max(60).optional()
-});
-
-export type UpdateProfileInput = z.infer<typeof updateProfileInput>;
 
 // Social interaction schemas
 export const likeInput = z.object({

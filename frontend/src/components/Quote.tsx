@@ -1,19 +1,14 @@
+import React from 'react';
 
 export const Quote = () => {
-    return <div className="bg-slate-200 h-screen flex justify-center flex-col">
-        <div className="flex justify-center">
-            <div className="max-w-lg">
-                <div className="text-3xl font-bold">
-                    "The customer support I received was exceptional. The support team went above and beyond to address my concerns"
-                </div>
-                <div className="max-w-md text-xl font-semibold text-left mt-3">
-                    Julies Winfield
-                </div>
-                <div className="max-w-md text-sm font-light text-slate-400">
-                    CEO | Acme corp
-                </div>
-            </div>
-        </div>
-        
+  return (
+    <div className="bg-slate-200 dark:bg-gray-800 h-screen flex justify-center items-center">
+      <div className="max-w-md p-8 bg-white dark:bg-gray-700 rounded-lg shadow-lg">
+        <p className="text-2xl font-serif italic text-gray-800 dark:text-gray-100 mb-4">
+          "The secret of getting ahead is getting started."
+        </p>
+        <p className="text-right text-gray-600 dark:text-gray-400">— Mark Twain</p>
+      </div>
     </div>
-}
+  );
+};
