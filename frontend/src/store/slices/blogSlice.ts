@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
+import apiClient from '../../lib/apiClient';
 import { BACKEND_URL } from '../../config';
 
 interface Author {
@@ -260,18 +261,7 @@ export const fetchLikes = createAsyncThunk(
   'blogs/fetchLikes',
   async (blogId: number, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        return rejectWithValue('Authentication required');
-      }
-
-      const response = await axios.get(
-        `${BACKEND_URL}/api/v1/blog/${blogId}/likes`,
-        {
-          headers: { Authorization: token },
-        }
-      );
-
+      const response = await apiClient.get(`/api/v1/blog/${blogId}/like`);
       return { blogId, likes: response.data.likes || [] };
     } catch (error) {
       return rejectWithValue('Failed to fetch likes');
@@ -286,36 +276,26 @@ export const addComment = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        return rejectWithValue('Authentication required');
-      }
-
-      const response = await axios.post(
-        `${BACKEND_URL}/api/v1/blog/${blogId}/comment`,
-        { text: content },
-        {
-          headers: { Authorization: token },
-        }
+      const response = await apiClient.post(
+        `/api/v1/blog/${blogId}/comment`,
+        { text: content }
       );
 
       if (response.data.comment) {
-        const userResponse = await axios.get(
-          `${BACKEND_URL}/api/v1/user/${response.data.comment.userId}`,
-          {
-            headers: { Authorization: token },
-          }
+        const userResponse = await apiClient.get(
+          `/api/v1/user/${response.data.comment.userId}`
         );
 
         const commentWithUser = {
           ...response.data.comment,
-          user: userResponse.data.user,
+          user: userResponse.data.user || userResponse.data, // Handle both response formats
         };
 
         return { blogId, comment: commentWithUser };
       }
       return rejectWithValue('Failed to add comment');
     } catch (error) {
+      console.error("Error adding comment:", error);
       return rejectWithValue('Failed to add comment');
     }
   }
@@ -332,21 +312,14 @@ export const updateLike = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        return rejectWithValue('Authentication required');
-      }
-
-      await axios.post(
-        `${BACKEND_URL}/api/v1/blog/${blogId}/like`,
-        { value },
-        {
-          headers: { Authorization: token },
-        }
+      await apiClient.post(
+        `/api/v1/blog/${blogId}/like`,
+        { value }
       );
 
       return { blogId, value, userId };
     } catch (error) {
+      console.error("Error updating like:", error);
       return rejectWithValue('Failed to update like');
     }
   }

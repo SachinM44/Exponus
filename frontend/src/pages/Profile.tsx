@@ -7,6 +7,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import toast from "react-hot-toast";
 import { useAppDispatch } from '../store/hooks';
 import { updateUserProfile } from '../store/slices/userSlice';
+import apiClient from "../lib/apiClient";
 
 interface UserProfile {
   id?: number;
@@ -33,48 +34,42 @@ export const Profile = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const loadUserProfile = useCallback(async () => {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/signin");
-        return;
-      }
-
-      const response = await axios.get(
-        `${BACKEND_URL}/api/v1/profile`,
-        {
-          headers: {
-            Authorization: token
-          }
-        }
-      );
-
-      const userData = response.data.user;
-      setProfile(userData);
-      
-      // If user has an avatar, set the preview
-      if (userData.avatar) {
-        setAvatarPreview(userData.avatar);
-      }
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      toast.error("Failed to load profile data");
-      
-      if (axios.isAxiosError(error) && error.response?.status === 403) {
-        // Token expired or invalid
-        localStorage.removeItem("token");
-        navigate("/signin");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
-
+  // Load user profile only once when component mounts
   useEffect(() => {
+    const loadUserProfile = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          navigate("/signin");
+          return;
+        }
+
+        const response = await apiClient.get("/api/v1/user/profile");
+        
+        // Backend returns data directly, not nested in user property
+        const userData = response.data;
+        setProfile(userData);
+        
+        // If user has an avatar, set the preview
+        if (userData.avatar) {
+          setAvatarPreview(userData.avatar);
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast.error("Failed to load profile data");
+        
+        // Token handling is now done in apiClient interceptor
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+          navigate("/signin");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadUserProfile();
-  }, [loadUserProfile]);
+  }, [navigate]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -100,12 +95,7 @@ export const Profile = () => {
   
   const handleRemoveAvatar = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      
-      await axios.delete(`${BACKEND_URL}/api/v1/profile/avatar`, {
-        headers: { Authorization: token }
-      });
+      await apiClient.delete("/api/v1/user/profile/avatar");
       
       setAvatarPreview(null);
       
@@ -148,13 +138,12 @@ export const Profile = () => {
     return true;
   };
 
-  const handleSubmit = async () => {
-    // When using password, make sure they match
-    if (password && password !== confirmPassword) {
-      setPasswordError("Passwords do not match");
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
       return;
     }
-    setPasswordError("");
 
     setSaving(true);
     try {
@@ -194,6 +183,9 @@ export const Profile = () => {
       // Clear password fields after update
       setPassword("");
       setConfirmPassword("");
+      
+      // Navigate back to blogs page after successful update
+      navigate('/blogs');
     } catch (error) {
       toast.error("Failed to update profile");
     } finally {
@@ -216,7 +208,18 @@ export const Profile = () => {
     <div className="min-h-screen dark:bg-gray-900">
       <Appbar />
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 dark:text-white">Edit Profile</h1>
+        <div className="flex items-center mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="mr-4 p-2 rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+            aria-label="Go back"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+          <h1 className="text-3xl font-bold dark:text-white">Edit Profile</h1>
+        </div>
         
         <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-8">
@@ -245,7 +248,7 @@ export const Profile = () => {
               </div>
               
               <div className="flex flex-col space-y-2 mt-4">
-                <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-center">
+                <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded text-center transition-colors">
                   Upload Photo
                   <input 
                     type="file" 
@@ -360,14 +363,14 @@ export const Profile = () => {
             <button
               type="button"
               onClick={() => navigate('/blogs')}
-              className="px-4 py-2 mr-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              className="px-4 py-2 mr-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg focus:outline-none dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? (
                 <>

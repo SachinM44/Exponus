@@ -24,18 +24,27 @@ const initialState: UserState = {
 // Tracking variables
 let isUserProfileBeingFetched = false;
 let lastFetchTime = 0;
-const FETCH_COOLDOWN = 10000; // 10 seconds cooldown between fetches
+const FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 
 // Async thunks
 export const fetchUserProfile = createAsyncThunk(
   'user/fetchUserProfile',
-  async (_, { rejectWithValue }) => {
+  async (_, { rejectWithValue, getState }) => {
     try {
       // Prevent concurrent fetches and limit frequency
       const now = Date.now();
-      if (isUserProfileBeingFetched || (now - lastFetchTime < FETCH_COOLDOWN)) {
-        console.log('Skipping duplicate profile fetch');
-        return null; // Return null to indicate skipped fetch
+      const state = getState() as { user: UserState };
+      
+      // If we already have a profile and it's been less than FETCH_COOLDOWN since last fetch, skip
+      if (state.user.profile && (now - lastFetchTime < FETCH_COOLDOWN)) {
+        console.log('Skipping duplicate profile fetch - using cached data');
+        return state.user.profile;
+      }
+      
+      // If a fetch is already in progress, skip
+      if (isUserProfileBeingFetched) {
+        console.log('Skipping duplicate profile fetch - fetch in progress');
+        return state.user.profile;
       }
       
       isUserProfileBeingFetched = true;
@@ -51,7 +60,7 @@ export const fetchUserProfile = createAsyncThunk(
 
       isUserProfileBeingFetched = false;
       lastFetchTime = Date.now();
-      console.log('Profile fetched successfully:', response.data);
+      console.log('Profile fetched successfully');
       
       return response.data;
     } catch (error) {
@@ -65,6 +74,7 @@ interface UpdateProfileParams {
   name: string;
   bio?: string;
   avatar?: string;
+  password?: string;
 }
 
 export const updateUserProfile = createAsyncThunk(
@@ -80,7 +90,8 @@ export const updateUserProfile = createAsyncThunk(
       const updateData: Record<string, string | undefined> = {
         name: params.name,
         bio: params.bio,
-        avatar: params.avatar
+        avatar: params.avatar,
+        password: params.password
       };
 
       // Remove undefined values
@@ -91,7 +102,10 @@ export const updateUserProfile = createAsyncThunk(
       });
 
       const response = await apiClient.put('/api/v1/user/profile', updateData);
-
+      
+      // Reset fetch cooldown after successful update
+      lastFetchTime = 0;
+      
       return response.data;
     } catch (error) {
       return rejectWithValue('Failed to update profile');
