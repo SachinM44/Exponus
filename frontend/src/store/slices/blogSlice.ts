@@ -276,7 +276,52 @@ export const fetchLikes = createAsyncThunk(
   async (blogId: number, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/api/v1/blog/${blogId}/like`);
-      return { blogId, likes: response.data.likes || [] };
+      
+      // The backend returns likesCount, dislikesCount, and userLike
+      // We need to convert it to our format for backward compatibility
+      
+      // Extract the data from the response
+      const { likesCount = 0, dislikesCount = 0, userLike = null } = response.data;
+      
+      // Create a likes array with the counts
+      const likes: Like[] = [];
+      
+      // Add the user's like if it exists
+      if (userLike) {
+        // Convert LIKE/DISLIKE to 1/-1 values
+        const value = userLike.type === 'LIKE' ? 1 : -1;
+        
+        const userId = userLike.userId || (localStorage.getItem('userId') ? Number(localStorage.getItem('userId')) : 0);
+        
+        likes.push({
+          id: userLike.id,
+          userId,
+          blogId,
+          value
+        });
+      }
+      
+      // Create dummy likes to represent the counts
+      // This is just for the UI, we don't need the actual user data for these
+      for (let i = 0; i < likesCount - (userLike?.type === 'LIKE' ? 1 : 0); i++) {
+        likes.push({
+          id: -1 - i, // negative IDs won't conflict with real IDs from the database
+          userId: -1 - i, 
+          blogId,
+          value: 1
+        });
+      }
+      
+      for (let i = 0; i < dislikesCount - (userLike?.type === 'DISLIKE' ? 1 : 0); i++) {
+        likes.push({
+          id: -1000 - i, // different range to avoid conflicts
+          userId: -1000 - i,
+          blogId,
+          value: -1
+        });
+      }
+      
+      return { blogId, likes };
     } catch (error) {
       return rejectWithValue('Failed to fetch likes');
     }
@@ -292,7 +337,7 @@ export const addComment = createAsyncThunk(
     try {
       const response = await apiClient.post(
         `/api/v1/blog/${blogId}/comment`,
-        { text: content }
+        { content }
       );
 
       if (response.data.comment) {
@@ -326,17 +371,24 @@ export const updateLike = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      // Fix: Ensure we're sending a proper JSON object with content-type application/json
-      await apiClient.post(
-        `/api/v1/blog/${blogId}/like`,
-        JSON.stringify({ value }), // Explicitly stringify the payload
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
+      // Instead of using apiClient.post which uses axios, use fetch directly
+      // to have more control over the request format
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${BACKEND_URL}/api/v1/blog/${blogId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ value }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+      
+      // Return the updated like data
       return { blogId, value, userId };
     } catch (error) {
       console.error("Error updating like:", error);

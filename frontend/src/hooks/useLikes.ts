@@ -32,7 +32,10 @@ export const useLikeBlog = (blogId: number) => {
     mutationFn: async (type: 'LIKE' | 'DISLIKE') => {
       const response = await apiClient.post(
         `/api/v1/blog/${blogId}/like`,
-        { type }
+        { 
+          type,
+          blogId: Number(blogId) // Include blogId as per the validation schema
+        }
       );
       return response.data;
     },

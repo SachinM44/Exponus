@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { fetchLikes, updateLike } from "../store/slices/blogSlice";
+import { fetchLikes } from "../store/slices/blogSlice";
 import { useState, memo, useMemo } from "react";
 import { toast } from "react-hot-toast";
+import { updateLikeStatus } from "../lib/fetchHelper";
 
 interface BlogCardProps {
     id: number;
@@ -136,24 +137,23 @@ export const BlogCard = memo(({
             return;
         }
         
-        // If user clicked same button that's already active, treat as unlike
-        const newValue = userLikeStatus === value ? 0 : value;
+        // If user clicked same button that's already active, we can't "unlike"
+        // since the backend doesn't support removing likes directly.
+        // So we'll just toggle between like/dislike
+        let newValue = value;
+        if (userLikeStatus === value) {
+            // If same button, toggle to the opposite action
+            newValue = value === 1 ? -1 : 1;
+        }
         
-        // Dispatch the update like action with the appropriate value
-        dispatch(updateLike({
-            blogId: id, 
-            value: newValue, 
-            userId: profile.id
-        })).unwrap()
-        .then(() => {
-            if (newValue === 1) {
-                toast.success("You liked this post");
-            } else if (newValue === -1) {
-                toast.success("You disliked this post");
+        // Use the direct fetch helper instead of Redux
+        updateLikeStatus(id, newValue).then(success => {
+            if (success) {
+                // Simply refetch likes to update the UI with the latest from the server
+                dispatch(fetchLikes(id));
+            } else {
+                toast.error("Failed to update like status");
             }
-        })
-        .catch(() => {
-            toast.error("Failed to update like status");
         });
     };
     
@@ -171,24 +171,29 @@ export const BlogCard = memo(({
                 text: truncatedContent,
                 url: url
             })
-            .then(() => toast.success("Shared successfully"))
             .catch((error) => {
                 console.error("Error sharing:", error);
                 
-                // Fallback: copy to clipboard
-                copyToClipboard(url);
+                // Only show toast on error
+                copyToClipboard(url, true);
             });
         } else {
             // Fallback: copy to clipboard
-            copyToClipboard(url);
+            copyToClipboard(url, true);
         }
     };
     
     // Helper to copy to clipboard
-    const copyToClipboard = (text: string) => {
+    const copyToClipboard = (text: string, showToast = false) => {
         navigator.clipboard.writeText(text)
-            .then(() => toast.success("Link copied to clipboard"))
-            .catch(() => toast.error("Failed to copy link"));
+            .then(() => {
+                if (showToast) {
+                    toast.success("Link copied to clipboard");
+                }
+            })
+            .catch(() => {
+                toast.error("Failed to copy link");
+            });
     };
     
     return (

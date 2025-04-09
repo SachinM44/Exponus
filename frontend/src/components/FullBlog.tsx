@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBlog } from '../hooks/useBlogs';
-import { useComments, useAddComment } from '../hooks/useComments';
+import { useComments } from '../hooks/useComments';
 import { useUser } from '../hooks/useUser';
 import Appbar from './Appbar';
 import Avatar from './Avatar';
@@ -9,7 +9,8 @@ import { formatDistanceToNow, isValid } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { fetchLikes, updateLike } from '../store/slices/blogSlice';
+import { fetchLikes } from '../store/slices/blogSlice';
+import { updateLikeStatus, addComment } from '../lib/fetchHelper';
 
 interface UserAuthor {
     id: number;
@@ -44,14 +45,14 @@ export const FullBlog = () => {
     const { id } = useParams<{ id: string }>();
     const [commentText, setCommentText] = useState('');
     const [showComments, setShowComments] = useState(false);
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { likes } = useAppSelector((state) => state.blogs);
 
     const blogId = Number(id);
     const { data: blog, isLoading: blogLoading } = useBlog(blogId);
-    const { data: comments, isLoading: commentsLoading } = useComments(blogId);
-    const { mutate: addComment, isPending: isSubmitting } = useAddComment(blogId);
+    const { data: comments, isLoading: commentsLoading, refetch: refetchComments } = useComments(blogId);
     const { data: currentUser } = useUser();
     
     // Get blog-specific likes
@@ -67,15 +68,26 @@ export const FullBlog = () => {
         : 0;
 
     const handleAddComment = async () => {
-        if (!commentText.trim() || isSubmitting || !currentUser) {
+        if (!commentText.trim() || isSubmittingComment || !currentUser) {
             return;
         }
 
         try {
-            await addComment(commentText.trim());
-            setCommentText('');
+            setIsSubmittingComment(true);
+            const success = await addComment(blogId, commentText.trim());
+            
+            if (success) {
+                setCommentText('');
+                // Refetch comments to show new comment
+                refetchComments();
+                toast.success('Comment added successfully');
+            } else {
+                toast.error('Failed to add comment');
+            }
         } catch (error) {
             toast.error('Failed to add comment');
+        } finally {
+            setIsSubmittingComment(false);
         }
     };
     
@@ -86,29 +98,23 @@ export const FullBlog = () => {
             return;
         }
         
-        // First fetch current likes if we don't have them
-        if (!blogLikes.length) {
-            dispatch(fetchLikes(blogId));
+        // If user clicked same button that's already active, we can't "unlike"
+        // since the backend doesn't support removing likes directly.
+        // So we'll just toggle between like/dislike
+        let newValue = value;
+        if (userLikeStatus === value) {
+            // If same button, toggle to the opposite action
+            newValue = value === 1 ? -1 : 1;
         }
         
-        // If user clicked same button that's already active, treat as unlike
-        const newValue = userLikeStatus === value ? 0 : value;
-        
-        // Dispatch the update like action with the appropriate value
-        dispatch(updateLike({
-            blogId: blogId, 
-            value: newValue, 
-            userId: currentUser.id
-        })).unwrap()
-        .then(() => {
-            if (newValue === 1) {
-                toast.success("You liked this post");
-            } else if (newValue === -1) {
-                toast.success("You disliked this post");
+        // Use the direct fetch helper instead of Redux
+        updateLikeStatus(blogId, newValue).then(success => {
+            if (success) {
+                // Refetch likes to update the UI
+                dispatch(fetchLikes(blogId));
+            } else {
+                toast.error("Failed to update like status");
             }
-        })
-        .catch(() => {
-            toast.error("Failed to update like status");
         });
     };
     
@@ -123,24 +129,29 @@ export const FullBlog = () => {
                 text: blog?.content.slice(0, 100) || '',
                 url: url
             })
-            .then(() => toast.success("Shared successfully"))
             .catch((error) => {
                 console.error("Error sharing:", error);
                 
-                // Fallback: copy to clipboard
-                copyToClipboard(url);
+                // Only show toast on error
+                copyToClipboard(url, true);
             });
         } else {
             // Fallback: copy to clipboard
-            copyToClipboard(url);
+            copyToClipboard(url, true);
         }
     };
     
     // Helper to copy to clipboard
-    const copyToClipboard = (text: string) => {
+    const copyToClipboard = (text: string, showToast = false) => {
         navigator.clipboard.writeText(text)
-            .then(() => toast.success("Link copied to clipboard"))
-            .catch(() => toast.error("Failed to copy link"));
+            .then(() => {
+                if (showToast) {
+                    toast.success("Link copied to clipboard");
+                }
+            })
+            .catch(() => {
+                toast.error("Failed to copy link");
+            });
     };
 
     if (blogLoading) {
@@ -168,8 +179,8 @@ export const FullBlog = () => {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
             <Appbar />
-            <main className="container mx-auto px-4 py-8">
-                <article className="prose prose-lg dark:prose-invert mx-auto">
+            <main className="container mx-auto px-4 py-8 relative z-0">
+                <article className="prose prose-lg dark:prose-invert mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 relative">
                     <h1 className="text-4xl font-bold mb-4">{blog.title}</h1>
                     
                     <div className="flex items-center mb-8">
@@ -247,10 +258,10 @@ export const FullBlog = () => {
                                         />
                                         <button
                                             onClick={handleAddComment}
-                                            disabled={isSubmitting || !commentText.trim()}
+                                            disabled={isSubmittingComment || !commentText.trim()}
                                             className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                                         >
-                                            {isSubmitting ? 'Posting...' : 'Post Comment'}
+                                            {isSubmittingComment ? 'Posting...' : 'Post Comment'}
                                         </button>
                                     </div>
                                 )}

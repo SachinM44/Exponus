@@ -13,9 +13,12 @@ const Appbar = () => {
   
   // Show back button on pages other than home and blogs
   const showBackButton = !['/blogs', '/'].includes(location.pathname);
+  
+  // Determine if this is a blog detail page
+  const isBlogDetailPage = location.pathname.startsWith('/blog/');
 
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-sm">
+    <nav className={`bg-white dark:bg-gray-800 shadow-sm ${isBlogDetailPage ? 'relative z-10' : ''}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">

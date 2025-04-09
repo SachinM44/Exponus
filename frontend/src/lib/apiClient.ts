@@ -21,6 +21,18 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
+    // Ensure Content-Type is set for all POST and PUT requests
+    if ((config.method === 'post' || config.method === 'put') && !config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Log the request details for debugging
+    console.log(`[API Client] ${config.method?.toUpperCase()} ${config.url}`, { 
+      headers: config.headers,
+      data: config.data 
+    });
+    
+    // Return the config
     return config;
   },
   (error) => {
@@ -34,15 +46,16 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle authentication errors
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      
-      // If the status is 401 (Unauthorized) or 403 (Forbidden), clear the token
-      if (status === 401 || status === 403) {
-        localStorage.removeItem('token');
-        toast.error('Your session has expired. Please sign in again.');
-      }
+    // Get the error message
+    const errorMessage = error.response?.data?.message || 'Something went wrong';
+    
+    // Show a toast notification
+    toast.error(errorMessage);
+    
+    // Logout if token is invalid
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      window.location.href = '/signin';
     }
     
     return Promise.reject(error);
