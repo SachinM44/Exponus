@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { fetchLikes } from "../store/slices/blogSlice";
-import { useState, memo, useMemo } from "react";
+import { useState, memo, useMemo, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { updateLikeStatus } from "../lib/fetchHelper";
+import Avatar from "./Avatar";
 
 interface BlogCardProps {
     id: number;
@@ -12,41 +13,8 @@ interface BlogCardProps {
     authorName: string;
     publishedDate: string;
     authorAvatar?: string;
+    onClick?: () => void;
 }
-
-interface AvatarProps {
-    name: string;
-    size?: "small" | "medium" | "large";
-    imageUrl?: string;
-}
-
-// Memoize the Avatar component to prevent unnecessary re-renders
-export const Avatar = memo(({ name, size = "medium", imageUrl }: AvatarProps) => {
-    const [imgError, setImgError] = useState(false);
-    const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
-    
-    const sizeClasses = {
-        small: "w-8 h-8 text-xs",
-        medium: "w-10 h-10 text-sm",
-        large: "w-12 h-12 text-base"
-    };
-    
-    return (
-        <div className={`relative rounded-full overflow-hidden flex items-center justify-center text-white font-medium ${sizeClasses[size]} bg-gradient-to-br from-indigo-500 to-purple-600`}>
-            {imageUrl && !imgError ? (
-                <img 
-                    src={imageUrl} 
-                    alt={`${name}'s avatar`} 
-                    className="w-full h-full object-cover"
-                    onError={() => setImgError(true)}
-                    loading="lazy"
-                />
-            ) : (
-                getInitials(name)
-            )}
-        </div>
-    );
-});
 
 // Memoize the BlogCard component to prevent unnecessary re-renders
 export const BlogCard = memo(({
@@ -55,11 +23,20 @@ export const BlogCard = memo(({
     content,
     authorName,
     publishedDate,
-    authorAvatar
+    authorAvatar,
+    onClick
 }: BlogCardProps) => {
     const dispatch = useAppDispatch();
     const { likes, comments } = useAppSelector((state) => state.blogs);
     const { profile } = useAppSelector((state) => state.user);
+    
+    // Fetch likes when component mounts
+    useEffect(() => {
+        // Fetch likes only if they don't already exist in the store
+        if (!likes[id] || likes[id].length === 0) {
+            dispatch(fetchLikes(id));
+        }
+    }, [id, dispatch, likes]);
     
     // Get blog-specific data
     const blogLikes = likes[id] || [];
@@ -71,11 +48,52 @@ export const BlogCard = memo(({
     const commentsCount = blogComments.length;
     
     // Format date for better readability
-    const formattedDate = new Date(publishedDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    const formattedDate = useMemo(() => {
+        try {
+            // Simple check if the date is missing or invalid
+            if (!publishedDate || publishedDate === 'Invalid Date') {
+                return 'Recently';
+            }
+            
+            // Try to parse the date
+            const date = new Date(publishedDate);
+            
+            // Explicit check for invalid date
+            if (isNaN(date.getTime())) {
+                console.log('Invalid date format received:', publishedDate);
+                return 'Recently';
+            }
+            
+            // Format the date properly
+            const now = new Date();
+            const diffTime = Math.abs(now.getTime() - date.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // If less than 2 days, show relative time
+            if (diffDays <= 2) {
+                // For very recent posts (less than a day)
+                if (diffDays < 1) {
+                    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                    if (diffHours < 1) {
+                        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                        return diffMinutes < 1 ? 'Just now' : `${diffMinutes} minutes ago`;
+                    }
+                    return `${diffHours} hours ago`;
+                }
+                return diffDays === 1 ? 'Yesterday' : '2 days ago';
+            }
+            
+            // Otherwise show the formatted date
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (error) {
+            console.error("Error formatting date:", error);
+            return 'Recently';
+        }
+    }, [publishedDate]);
     
     // Extract image URL from content if available
     const getImageUrl = useMemo(() => {
@@ -198,7 +216,7 @@ export const BlogCard = memo(({
     
     return (
         <div className="w-full transition-all duration-300 hover:translate-y-[-4px] hover:shadow-lg rounded-xl overflow-hidden border dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-            <Link to={`/blog/${id}`} className="block h-full">
+            <Link to={`/blog/${id}`} className="block h-full" onClick={onClick}>
                 {/* Show image if available */}
                 {getImageUrl && (
                     <div className="w-full h-48 overflow-hidden">
@@ -213,7 +231,7 @@ export const BlogCard = memo(({
                 
                 <div className="p-5">
                     <div className="flex items-center space-x-3 mb-3">
-                        <Avatar name={authorName} imageUrl={authorAvatar} />
+                        <Avatar name={authorName} src={authorAvatar} size="small" />
                         <div>
                             <h3 className="font-medium dark:text-white">{authorName}</h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{formattedDate}</p>

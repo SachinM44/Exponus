@@ -104,7 +104,9 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <div className="bg-gray-100 dark:bg-gray-900 min-h-screen w-full">
+        <AppContent />
+      </div>
     </QueryClientProvider>
   );
 }

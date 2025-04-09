@@ -6,9 +6,15 @@ export interface Blog {
   id: number;
   title: string;
   content: string;
+  createdAt: string;
+  authorId: number;
   author: {
-    name: string;
+    id: number;
+    name: string | null;
+    email: string;
+    avatar: string | null;
   };
+  comments?: number;
 }
 
 // Fetch all blogs

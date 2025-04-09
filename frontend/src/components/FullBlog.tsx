@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBlog } from '../hooks/useBlogs';
-import { useComments } from '../hooks/useComments';
+import { useComments, useAddComment } from '../hooks/useComments';
 import { useUser } from '../hooks/useUser';
 import Appbar from './Appbar';
 import Avatar from './Avatar';
@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchLikes } from '../store/slices/blogSlice';
-import { updateLikeStatus, addComment } from '../lib/fetchHelper';
+import { updateLikeStatus } from '../lib/fetchHelper';
 
 interface UserAuthor {
     id: number;
@@ -32,8 +32,40 @@ const formatDateSafe = (dateStr: string | undefined | null) => {
     if (!dateStr) return 'Recently';
     
     try {
+        // Simple check if the date is missing or invalid
+        if (dateStr === 'Invalid Date') {
+            return 'Recently';
+        }
+        
+        // Try to parse the date
         const date = new Date(dateStr);
-        if (!isValid(date)) return 'Recently';
+        
+        // Explicit check for invalid date
+        if (isNaN(date.getTime())) {
+            console.log('Invalid date format received:', dateStr);
+            return 'Recently';
+        }
+        
+        // Format the date properly
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - date.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        // If less than 2 days, show relative time
+        if (diffDays <= 2) {
+            // For very recent posts (less than a day)
+            if (diffDays < 1) {
+                const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                if (diffHours < 1) {
+                    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+                    return diffMinutes < 1 ? 'Just now' : `${diffMinutes} minutes ago`;
+                }
+                return `${diffHours} hours ago`;
+            }
+            return diffDays === 1 ? 'Yesterday' : '2 days ago';
+        }
+        
+        // Otherwise show the formatted date using formatDistanceToNow
         return `${formatDistanceToNow(date)} ago`;
     } catch (error) {
         console.error('Invalid date format:', dateStr);
@@ -45,15 +77,22 @@ export const FullBlog = () => {
     const { id } = useParams<{ id: string }>();
     const [commentText, setCommentText] = useState('');
     const [showComments, setShowComments] = useState(false);
-    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { likes } = useAppSelector((state) => state.blogs);
 
     const blogId = Number(id);
     const { data: blog, isLoading: blogLoading } = useBlog(blogId);
-    const { data: comments, isLoading: commentsLoading, refetch: refetchComments } = useComments(blogId);
+    const { data: comments, isLoading: commentsLoading } = useComments(blogId);
     const { data: currentUser } = useUser();
+    const addCommentMutation = useAddComment(blogId);
+    
+    // Fetch likes when component mounts
+    useEffect(() => {
+        if (blogId) {
+            dispatch(fetchLikes(blogId));
+        }
+    }, [blogId, dispatch]);
     
     // Get blog-specific likes
     const blogLikes = likes[blogId] || [];
@@ -68,26 +107,19 @@ export const FullBlog = () => {
         : 0;
 
     const handleAddComment = async () => {
-        if (!commentText.trim() || isSubmittingComment || !currentUser) {
+        if (!commentText.trim() || !currentUser) {
+            if (!currentUser) {
+                toast.error('Please sign in to comment');
+            }
             return;
         }
 
         try {
-            setIsSubmittingComment(true);
-            const success = await addComment(blogId, commentText.trim());
-            
-            if (success) {
-                setCommentText('');
-                // Refetch comments to show new comment
-                refetchComments();
-                toast.success('Comment added successfully');
-            } else {
-                toast.error('Failed to add comment');
-            }
+            await addCommentMutation.mutateAsync(commentText.trim());
+            setCommentText('');
         } catch (error) {
-            toast.error('Failed to add comment');
-        } finally {
-            setIsSubmittingComment(false);
+            // Error is handled by the mutation
+            console.error('Error adding comment:', error);
         }
     };
     
@@ -154,6 +186,12 @@ export const FullBlog = () => {
             });
     };
 
+    const getImageUrl = (content: string) => {
+        const imgRegex = /!\[.*?\]\((.*?)\)/;
+        const match = content.match(imgRegex);
+        return match ? match[1] : null;
+    };
+
     if (blogLoading) {
         return (
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -177,10 +215,10 @@ export const FullBlog = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
             <Appbar />
-            <main className="container mx-auto px-4 py-8 relative z-0">
-                <article className="prose prose-lg dark:prose-invert mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 relative">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <article className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
                     <h1 className="text-4xl font-bold mb-4">{blog.title}</h1>
                     
                     <div className="flex items-center mb-8">
@@ -196,6 +234,18 @@ export const FullBlog = () => {
                             </p>
                         </div>
                     </div>
+
+                    {/* Display blog image if present */}
+                    {blog.content && getImageUrl(blog.content) && (
+                        <div className="mb-8 rounded-lg overflow-hidden">
+                            <img 
+                                src={getImageUrl(blog.content)!}
+                                alt="Blog cover"
+                                className="w-full h-auto object-cover"
+                                loading="lazy"
+                            />
+                        </div>
+                    )}
 
                     <div className="prose dark:prose-invert max-w-none">
                         <ReactMarkdown>{blog.content}</ReactMarkdown>
@@ -242,7 +292,7 @@ export const FullBlog = () => {
                             onClick={() => setShowComments(!showComments)}
                             className="text-blue-600 hover:text-blue-700 font-medium"
                         >
-                            {showComments ? 'Hide Comments' : `Show Comments (${blog.comments})`}
+                            {showComments ? 'Hide Comments' : `Show Comments (${comments?.length || 0})`}
                         </button>
 
                         {showComments && (
@@ -258,10 +308,10 @@ export const FullBlog = () => {
                                         />
                                         <button
                                             onClick={handleAddComment}
-                                            disabled={isSubmittingComment || !commentText.trim()}
+                                            disabled={!commentText.trim()}
                                             className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                                         >
-                                            {isSubmittingComment ? 'Posting...' : 'Post Comment'}
+                                            Post Comment
                                         </button>
                                     </div>
                                 )}
@@ -296,7 +346,7 @@ export const FullBlog = () => {
                         )}
                     </div>
                 </article>
-            </main>
+            </div>
         </div>
     );
 }

@@ -1,20 +1,53 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useBlogs } from '../hooks/useBlogs';
-import BlogCard from '../components/Blogcard';
+import { BlogCard } from '../components/Blogcard';
 import Appbar from '../components/Appbar';
 import { toast } from 'react-hot-toast';
+import { useAppDispatch } from '../store/hooks';
+import { fetchLikes } from '../store/slices/blogSlice';
 
 export function Blogs() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useAppDispatch();
   const [searchTerm, setSearchTerm] = useState('');
   const { data: blogs, isLoading, error, refetch } = useBlogs();
 
+  // Get search query from URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const query = params.get('q');
+    if (query) {
+      setSearchTerm(query);
+    } else {
+      setSearchTerm('');
+    }
+  }, [location.search]);
+
+  // Fetch likes for all blogs when the component mounts
+  useEffect(() => {
+    if (blogs && blogs.length > 0) {
+      // Fetch likes for all blogs
+      blogs.forEach(blog => {
+        dispatch(fetchLikes(blog.id));
+      });
+    }
+  }, [blogs, dispatch]);
+
   const filteredBlogs = useMemo(() => {
     if (!blogs) return [];
-    return blogs.filter(blog =>
-      blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      blog.content.toLowerCase().includes(searchTerm.toLowerCase())
+    if (!searchTerm.trim()) return blogs;
+    
+    const query = searchTerm.toLowerCase().trim();
+    return blogs.filter(blog => 
+      // Search by title
+      blog.title.toLowerCase().includes(query) || 
+      // Search by content
+      blog.content.toLowerCase().includes(query) || 
+      // Search by author name or email
+      (blog.author.name && blog.author.name.toLowerCase().includes(query)) ||
+      blog.author.email.toLowerCase().includes(query)
     );
   }, [blogs, searchTerm]);
 
@@ -26,16 +59,24 @@ export function Blogs() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Appbar />
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <input
-            type="text"
-            placeholder="Search blogs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full max-w-md px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
+        {searchTerm && (
+          <div className="mb-8 text-center">
+            <h2 className="text-lg font-medium text-gray-700 dark:text-gray-300">
+              {filteredBlogs.length > 0 
+                ? `Found ${filteredBlogs.length} result${filteredBlogs.length === 1 ? '' : 's'} for "${searchTerm}"`
+                : `No results found for "${searchTerm}"`}
+            </h2>
+            {filteredBlogs.length === 0 && (
+              <button
+                onClick={() => navigate('/blogs')}
+                className="mt-2 text-blue-500 hover:text-blue-600"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        )}
+        
         {isLoading ? (
           <div className="flex justify-center my-12">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -50,9 +91,9 @@ export function Blogs() {
               Retry
             </button>
           </div>
-        ) : filteredBlogs.length === 0 ? (
+        ) : filteredBlogs.length === 0 && !searchTerm ? (
           <div className="text-center my-12 text-gray-500 dark:text-gray-400">
-            {searchTerm ? 'No blogs match your search.' : 'No blogs have been published yet.'}
+            No blogs have been published yet.
           </div>
         ) : (
           <div className="space-y-8 max-w-3xl mx-auto">

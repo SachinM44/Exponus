@@ -106,19 +106,17 @@ export const Blog = () => {
     }
     
     return (
-        <>
-            <div className="mx-auto max-w-4xl px-4 py-8">
-                <FullBlog
-                    title={selectedBlog.title}
-                    content={selectedBlog.content}
-                    authorName={authorName}
-                    publishedDate={selectedBlog.createdAt}
-                    blogId={selectedBlog.id}
-                    authorId={selectedBlog.authorId}
-                    authorAvatar={selectedBlog.author.avatar || undefined}
-                />
-            </div>
-        </>
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+            <FullBlog
+                title={selectedBlog.title}
+                content={selectedBlog.content}
+                authorName={authorName}
+                publishedDate={selectedBlog.createdAt}
+                blogId={selectedBlog.id}
+                authorId={selectedBlog.authorId}
+                authorAvatar={selectedBlog.author.avatar || undefined}
+            />
+        </div>
     )
 }
 
