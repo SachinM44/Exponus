@@ -10,7 +10,7 @@ const isDevelopment = (): boolean => {
 // Configure backend URL based on environment
 export const BACKEND_URL = isDevelopment() 
   ? "http://127.0.0.1:8787"  // Local development
-  : "https://api.exponus.pages.dev";  // Production deployment
+  : "https://exponus-backend.expo-nus.workers.dev";  // Production deployment
 
 // Other constants
 export const APP_NAME = "Exponus";

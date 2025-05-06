@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
 export interface AvatarProps {
-  name: string;
-  src?: string;
+  name: string | null | undefined;
+  src?: string | null | undefined;
   size?: 'sm' | 'small' | 'medium' | 'large';
 }
 
@@ -13,9 +13,9 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'medium' }) => {
   // Log debug info when src changes
   useEffect(() => {
     if (src) {
-      console.log(`Avatar for ${name} is using src: ${src}`);
+      console.log(`Avatar for ${name || 'Unknown'} is using src: ${src}`);
       if (src.startsWith('null') || src === 'undefined') {
-        console.error(`Invalid avatar src for ${name}: ${src}`);
+        console.error(`Invalid avatar src for ${name || 'Unknown'}: ${src}`);
         setImgError(true);
         setDebugInfo(`Invalid src: ${src}`);
       } else {
@@ -32,8 +32,9 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'medium' }) => {
     large: 'h-16 w-16 text-base',
   };
 
-  const initials = name
-    ? name
+  const displayName = name || 'User';
+  const initials = displayName
+    ? displayName
         .split(' ')
         .map(n => n && n[0])
         .filter(Boolean)
@@ -44,10 +45,10 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'medium' }) => {
 
   // Use different background colors based on the name
   const getColorClass = () => {
-    if (!name) return 'bg-blue-500';
+    if (!displayName) return 'bg-blue-500';
     
     // Generate a consistent color based on the name
-    const hash = name.split('').reduce((acc, char) => {
+    const hash = displayName.split('').reduce((acc, char) => {
       return char.charCodeAt(0) + ((acc << 5) - acc);
     }, 0);
     
@@ -65,12 +66,12 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'medium' }) => {
       className={`${
         sizeClasses[size]
       } rounded-full flex items-center justify-center ${getColorClass()} text-white font-medium overflow-hidden`}
-      title={debugInfo || name}
+      title={debugInfo || displayName}
     >
       {src && !imgError ? (
         <img
           src={src}
-          alt={name || 'User'}
+          alt={displayName}
           className="w-full h-full object-cover"
           onError={(e) => {
             console.error('Avatar image failed to load:', src);
@@ -85,4 +86,4 @@ const Avatar: React.FC<AvatarProps> = ({ name, src, size = 'medium' }) => {
   );
 };
 
-export default Avatar; 
+export default Avatar;

@@ -18,7 +18,7 @@ export const Auth = ({ type }: { type: "signup" | "signin" }) => {
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string | string[] | undefined>>({});
 
     async function handleSubmit(e: FormEvent) {
         e.preventDefault();
@@ -155,10 +155,13 @@ interface LabelledInputType {
     placeholder: string;
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
     type?: string;
-    error?: string;
+    error?: string | string[];
 }
 
 function LabelledInput({ label, placeholder, onChange, type, error }: LabelledInputType) {
+    // Convert error to string if it's an array
+    const errorMessage = Array.isArray(error) ? error.join(', ') : error;
+    
     return (
         <div className="mb-4">
             <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
@@ -172,8 +175,8 @@ function LabelledInput({ label, placeholder, onChange, type, error }: LabelledIn
                 placeholder={placeholder} 
                 required 
             />
-            {error && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+            {errorMessage && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
             )}
         </div>
     );
