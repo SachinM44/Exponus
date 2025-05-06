@@ -1,0 +1,26 @@
+{
+  "scripts": {
+    "dev": "wrangler dev src/index.ts",
+    "deploy": "wrangler deploy --minify src/index.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.782.0",
+    "@aws-sdk/s3-request-presigner": "^3.782.0",
+    "@exponus1/exponus-common": "^1.0.14",
+    "@heroicons/react": "^2.2.0",
+    "@prisma/client": "^6.7.0",
+    "@prisma/extension-accelerate": "^1.3.0",
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "hono": "^4.4.2",
+    "pg": "^8.12.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^6.7.0",
+    "wrangler": "^3.57.2"
+  }
+}

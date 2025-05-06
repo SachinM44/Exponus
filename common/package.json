@@ -1,0 +1,20 @@
+{
+  "name": "@exponus1/exponus-common",
+  "version": "1.0.14",
+  "description": "Common validations for Exponus",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}

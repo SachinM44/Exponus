@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Using DATABASE_URL from .env for normal operation
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  name      String?
+  username  String  @unique
+  password  String
+  bio       String? 
+  avatar    String?
+  blogs     Blog[]
+  comments  Comment[]
+  likes     Like[]
+}
+
+model Blog {
+  id        Int      @id @default(autoincrement())
+  authorId  Int
+  content   String
+  title     String
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+  likes     Like[]
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  content   String
+  blogId    Int
+  userId    Int
+  createdAt DateTime  @default(now())
+  blog      Blog      @relation(fields: [blogId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+// Define Enum for Like types
+enum LikeType {
+  LIKE
+  DISLIKE
+}
+
+model Like {
+  id        Int       @id @default(autoincrement())
+  blogId    Int
+  userId    Int
+  type      LikeType  // Use the Enum type
+  createdAt DateTime  @default(now())
+  blog      Blog      @relation(fields: [blogId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([blogId, userId])
+}

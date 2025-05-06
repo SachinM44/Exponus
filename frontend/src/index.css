@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --toaster-bg: white;
+  --toaster-color: #1f2937;
+}
+
+.dark {
+  --toaster-bg: #374151;
+  --toaster-color: #f9fafb;
+}
+
+/* Add these CSS rules to make sure dark mode is applied properly */
+@layer base {
+  html.dark {
+    @apply bg-gray-900 text-white;
+  }
+}
