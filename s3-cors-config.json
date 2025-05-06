@@ -1,0 +1,11 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["https://resplendent-kelpie-d149a6.netlify.app", "http://localhost:5173"],
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+      "MaxAgeSeconds": 3000,
+      "ExposeHeaders": ["ETag"]
+    }
+  ]
+}

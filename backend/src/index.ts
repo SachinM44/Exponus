@@ -26,7 +26,7 @@ const app = new Hono<AppEnv>();
 
 // CORS Middleware (apply first to handle preflight requests properly)
 app.use('/*', cors({
-  origin: ['http://localhost:5173', 'https://exponus.vercel.app'],
+  origin: ['http://localhost:5173', 'https://exponus.vercel.app', 'https://resplendent-kelpie-d149a6.netlify.app'],
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   exposeHeaders: ['Content-Length', 'X-Requested-With'],

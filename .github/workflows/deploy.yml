@@ -1,0 +1,120 @@
+name: Exponus Deploy Pipeline
+
+on:
+  workflow_run:
+    workflows: ["Exponus Build Pipeline"]
+    types:
+      - completed
+    branches: [main]
+
+jobs:
+  deploy-production:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Deploy backend to Cloudflare Workers
+      - name: Deploy backend to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          workingDirectory: 'backend'
+          command: deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          HUGGING_FACE_API_TOKEN: ${{ secrets.HUGGING_FACE_API_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      
+      # Build frontend for production
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+      
+      # Deploy frontend to Netlify
+      - name: Deploy frontend to Netlify
+        uses: nwtgck/actions-netlify@v2
+        with:
+          publish-dir: './frontend/dist'
+          production-branch: main
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+          overwrites-pull-request-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 5
+
+  # Optional staging deployment for develop branch
+  deploy-staging:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.ref == 'refs/heads/develop' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Deploy backend to Cloudflare Workers (staging)
+      - name: Deploy backend to Cloudflare Workers (staging)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          workingDirectory: 'backend'
+          command: deploy --env staging
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+          S3_BUCKET_NAME: ${{ secrets.STAGING_S3_BUCKET_NAME }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          HUGGING_FACE_API_TOKEN: ${{ secrets.HUGGING_FACE_API_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      
+      # Build frontend for staging
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build frontend (staging)
+        working-directory: ./frontend
+        run: npm run build:staging
+      
+      # Deploy frontend to Netlify (staging)
+      - name: Deploy frontend to Netlify (staging)
+        uses: nwtgck/actions-netlify@v2
+        with:
+          publish-dir: './frontend/dist'
+          alias: staging
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy staging from GitHub Actions"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+          overwrites-pull-request-comment: true
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 5

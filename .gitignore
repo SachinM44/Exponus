@@ -34,3 +34,5 @@ lerna-debug.log*
 
 # Cloudflare
 **/.wrangler 
+# Local Netlify folder
+.netlify
